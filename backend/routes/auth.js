@@ -4,48 +4,80 @@ const router = express.Router();
 const User = require('../models/User');
 const { loginLimiter } = require('../middleware/security');
 
-// Função para criar primeiro usuário admin (apenas em desenvolvimento)
-async function createAdminUser() {
+// Função para criar usuários padrão se não existirem
+async function createDefaultUsers() {
   try {
-    const adminCount = await User.countDocuments();
-    if (adminCount === 0 && process.env.NODE_ENV === 'development') {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
-      const adminUser = new User({
-        email: 'admin@gastos.com',
-        password: hashedPassword,
-        name: 'Administrador'
+    const userCount = await User.countDocuments();
+    console.log(`📊 Total de usuários no banco: ${userCount}`);
+    
+    if (userCount === 0) {
+      console.log('🚀 Criando usuários padrão...');
+      
+      // Usuário 1: deyvison@gastos.com
+      const deyvison = new User({
+        email: 'deyvison@gastos.com',
+        password: await bcrypt.hash('deyvison!', 10),
+        name: 'Deyvison'
       });
-      await adminUser.save();
-      console.log('✅ Usuário administrador criado para desenvolvimento');
-      console.log('📧 Email: admin@gastos.com');
-      console.log('🔑 Senha: admin123');
+      await deyvison.save();
+      console.log('✅ Usuário criado: deyvison@gastos.com');
+      
+      // Usuário 2: kallenya@gastos.com  
+      const kallenya = new User({
+        email: 'kallenya@gastos.com',
+        password: await bcrypt.hash('kallenya!', 10),
+        name: 'Kallenya'
+      });
+      await kallenya.save();
+      console.log('✅ Usuário criado: kallenya@gastos.com');
+      
+      // Usuário admin (em desenvolvimento)
+      if (process.env.NODE_ENV === 'development') {
+        const admin = new User({
+          email: 'admin@gastos.com',
+          password: await bcrypt.hash('admin123', 10),
+          name: 'Administrador'
+        });
+        await admin.save();
+        console.log('✅ Usuário admin criado para desenvolvimento');
+      }
+      
+      console.log('🎉 Usuários padrão criados com sucesso!');
+    } else {
+      console.log('👥 Usuários já existem no banco de dados');
     }
   } catch (error) {
-    console.error('❌ Erro ao criar usuário admin:', error);
+    console.error('❌ Erro ao criar usuários padrão:', error);
   }
 }
 
-// Criar usuário admin apenas em desenvolvimento
-if (process.env.NODE_ENV === 'development') {
-  createAdminUser();
-}
+// Criar usuários padrão (em qualquer ambiente)
+createDefaultUsers();
 
 // Rota de login
 router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(`🔐 Tentativa de login para: ${email}`);
 
     if (!email || !password) {
+      console.log('❌ Email ou senha não fornecidos');
       return res.status(400).json({ 
         success: false, 
         message: 'Email e senha são obrigatórios' 
       });
     }
 
+    // Verificar conexão com banco
+    const totalUsers = await User.countDocuments();
+    console.log(`📊 Total de usuários no banco: ${totalUsers}`);
+
     // Buscar usuário no banco
     const user = await User.findOne({ email: email.toLowerCase() });
+    console.log(`👤 Usuário encontrado: ${user ? 'Sim' : 'Não'}`);
     
     if (!user) {
+      console.log(`❌ Usuário não encontrado: ${email}`);
       return res.status(401).json({ 
         success: false, 
         message: 'Email ou senha incorretos' 
@@ -54,8 +86,10 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     // Verificar senha
     const isValidPassword = await bcrypt.compare(password, user.password);
+    console.log(`🔑 Senha válida: ${isValidPassword ? 'Sim' : 'Não'}`);
     
     if (!isValidPassword) {
+      console.log(`❌ Senha incorreta para: ${email}`);
       return res.status(401).json({ 
         success: false, 
         message: 'Email ou senha incorretos' 
@@ -73,6 +107,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       name: user.name
     };
 
+    console.log(`✅ Login bem-sucedido para: ${email}`);
     res.json({ 
       success: true, 
       message: 'Login realizado com sucesso!',
@@ -84,10 +119,12 @@ router.post('/login', loginLimiter, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Erro no login:', error);
+    console.error('❌ Erro detalhado no login:', error);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ 
       success: false, 
-      message: 'Erro interno do servidor' 
+      message: 'Erro interno do servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

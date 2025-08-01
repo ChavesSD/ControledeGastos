@@ -60,15 +60,22 @@ app.use(session({
 // Conexão com MongoDB
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/controle_gastos';
 
+console.log('🔍 Configurações do ambiente:');
+console.log(`📊 NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`🗄️ MONGODB_URI: ${process.env.MONGODB_URI ? 'Configurado' : 'NÃO CONFIGURADO'}`);
+console.log(`🔐 SESSION_SECRET: ${process.env.SESSION_SECRET ? 'Configurado' : 'Usando padrão'}`);
+
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
 .then(() => {
   console.log('✅ Conectado ao MongoDB com sucesso!');
+  console.log(`🌐 Database: ${mongoose.connection.name}`);
 })
 .catch((err) => {
   console.error('❌ Erro ao conectar com MongoDB:', err);
+  console.error('💡 Verifique se MONGODB_URI está configurado corretamente no Railway');
 });
 
 // Importar rotas
